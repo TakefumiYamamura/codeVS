@@ -4,6 +4,7 @@
 #include <iostream>
 #include <vector>
 #include <string>
+
 using namespace std;
 
 const int MAX_H = 20;
@@ -245,6 +246,82 @@ void solve() {
             // (target_row, target_col) に近づくように一歩移動
             // 目的地からの距離を数えて、今いる場所から、近づく向きへ移動。
             string move = walk(target_row, target_col, ch_row[my0], ch_col[my0]);
+            cout << move << endl;
+            cout << move << endl;
+            return;
+        }
+
+    }
+
+    if (magic_size < ch_hav[my1]) { // フィールドに魔法陣が一つもないとき、(1)、(2)の行動
+
+        // 自キャラが、'.' を通っていける場所を列挙する。
+        // dist[row][col] には、現在位置からの歩数が入る。
+        calc_dist(ch_row[my1], ch_col[my1]);
+
+
+        // 自キャラがいける場所のうちで、敵に最も近い場所を (target_row, target_col) に代入
+        int target_row = ch_row[my1], target_col = ch_col[my1];
+        for (int row = 0; row < H; row++)
+            for (int col = 0; col < W; col++)
+                if (dist[row][col] < 1000000)
+                    if (get_dist1(ch_row[op0], ch_col[op0], target_row, target_col) > get_dist1(ch_row[op0], ch_col[op0], row, col)) {
+                        target_row = row;
+                        target_col = col;
+                    }
+
+        // (2) もし今いる場所が、自キャラがいける場所のうちで敵に最も近い場所ならば、魔法陣を設置。
+        if ( abs(target_row - ch_row[my1]) < ch_pow[my1]  && abs(target_row - ch_row[my1]) < ch_pow[my1] ) {
+            cout << "NONE MAGIC 10" << endl;
+            cout << "NONE" << endl;
+            return;
+        } else {
+            // (1)
+            // そうでないなら、目的地へ近づく向きへ一歩動く
+
+            // 目的地からの距離を数えて、今いる場所から、近づく向きへ移動。
+            string move = walk(target_row, target_col, ch_row[my1], ch_col[my1]);
+            cout << move << endl;
+            cout << move << endl;
+            return;
+        }
+
+    } else {
+        // (3) 魔法陣が1つでも置かれているなら、魔法に当たらない場所へ移動し、待機。
+
+        // 魔法の攻撃範囲を求める。
+        calc_attack();
+
+        if (!attack[ch_row[my1]][ch_col[my1]]) { // 魔法に当たらない位置なら待機
+            cout << "NONE" << endl;
+            cout << "NONE" << endl;
+            return;
+        } else { // 今いる場所が魔法の攻撃範囲なら、よける。
+
+            // 自キャラが、'.' を通っていける場所を列挙する。
+            // dist[row][col] に、現在位置からの歩数が入る。
+            calc_dist(ch_row[my1], ch_col[my1]);
+
+            // 自キャラがいける場所のうちで、最も近い attack == 0 の場所を (target_row, target_col) に代入
+            int target_row = -1, target_col = -1;
+            for (int row = 0; row < H; row++)
+                for (int col = 0; col < W; col++)
+                    if (dist[row][col] < 1000000 && attack[row][col] == 0)
+                        if (target_row == -1 || dist[target_row][target_col] > dist[row][col])
+                        {
+                            target_row = row;
+                            target_col = col;
+                        }
+
+            if (target_row == -1) {
+                cout << "NONE" << endl;
+                cout << "NONE" << endl;
+                return;
+            }
+
+            // (target_row, target_col) に近づくように一歩移動
+            // 目的地からの距離を数えて、今いる場所から、近づく向きへ移動。
+            string move = walk(target_row, target_col, ch_row[my1], ch_col[my1]);
             cout << move << endl;
             cout << move << endl;
             return;
