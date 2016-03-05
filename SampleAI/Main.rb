@@ -1,4 +1,8 @@
 require "pry"
+require 'matrix'
+require 'complex'
+
+
 class Player
   attr_reader :map
 
@@ -76,8 +80,8 @@ class Map
         end
       end
     end
-    binding.pry
-    return distance_map
+    max_num *= 1.0
+    return distance_map.map { |e1| e1.map { |e2| e2/max_num  }  }
   end
 
   def shortest_road start_point, end_point
@@ -210,9 +214,27 @@ class AI
       puts "2"
 
       # 忍者の行動決定
+      evaluate_enemy_map = Vector.elements(Array.new(@me.map.row) { Array.new(@me.map.col, 0) } )
+      @me.map.enemies.each do |enemy|
+        evaluate_enemy_map += Vector.elements(@me.map.distance_evaluate enemy)
+      end
+      evaluate_enemy_map = evaluate_enemy_map * 1.0 / @me.map.enemies.count
+
+      evaluate_item_map = Vector.elements(Array.new(@me.map.row) { Array.new(@me.map.col, 0) } )
+      @me.map.items.each do |item|
+        evaluate_item_map += Vector.elements(@me.map.distance_evaluate item)
+      end
+      evaluate_item_map = evaluate_item_map * 1.0 / @me.map.itmes.count
+
+      effective_map = evaluate_enemy_map * 0.5 + extract_item * 0.5
+      binging.pry
+
+
       @me.map.ninjas.each do |ninja|
         item  = @me.map.nearest_item ninja.x, ninja.y
-        @me.map.distance_evaluate item.point
+        item_evaluate_map = @me.map.distance_evaluate item.point
+        evaluate_map += Vector.elements(item_evaluate_map)
+
         steps = @me.map.shortest_road ninja, item
         puts steps[0,1].join("")
       end
