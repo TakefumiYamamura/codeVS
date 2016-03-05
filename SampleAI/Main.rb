@@ -96,47 +96,6 @@ class Map
     max_num *= 1.0
     return distance_map.map { |e1| e1.map { |e2| e2/max_num  }  }
   end
-
-  # def shortest_road start_point, end_point
-  #   # 初期化
-  #   item_effective_map = Array.new(self.row) { Array.new(self.col, nil) }
-  #   item_effective_map.each_with_index do |row, x|
-  #     row.each_with_index do |cell, y|
-  #       item_effective_map[x][y] = -1 if self.cells[x][y].has_object?
-  #     end
-  #   end
-  #   i = 0
-  #   item_effective_map[start_point.x][start_point.y] = 0
-  #   while item_effective_map.flatten.include?(nil) && i < 100
-  #     item_effective_map.each_with_index do |row, x|
-  #       row.each_with_index do |score, y|
-  #         if score == i
-  #           point = self.cells[x][y].point
-  #           [point.left, point.right, point.up, point.down].each do |po|
-  #             item_effective_map[po.x][po.y] = i+1 if self.movable?(po) && item_effective_map[po.x][po.y] == nil
-  #           end
-  #         end
-  #       end
-  #     end
-  #     i += 1
-  #   end
-
-  #   step  = item_effective_map[end_point.x][end_point.y]
-  #   steps = []
-
-  #   return steps if step.nil? || step < 0
-  #   next_po = self.cells[end_point.x][end_point.y].point
-  #   (step-1).downto(0) do |score|
-  #     [[next_po.right, "R"], [next_po.left, "L"], [next_po.down, "D"], [next_po.up, "U"]].each do |po, code|
-  #       if item_effective_map[po.x][po.y] == score
-  #         steps.push code
-  #         next_po = po
-  #         break
-  #       end
-  #     end
-  #   end
-  #   return steps.reverse
-  # end
 end
 
 
