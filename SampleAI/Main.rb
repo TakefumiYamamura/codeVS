@@ -1,20 +1,7 @@
 # require "pry"
-# require 'matrix'
-# require 'complex'
-class Matrix
-  def self.elements_sum(a, b)
-    a3 = a.dup
-    a.each_with_index do |a1, x|
-      a1.each_with_index do |a2, y|
-        a3[x][y] = a2 + b[x][y]
-      end
-    end
-    return a3
-  end
-  def self.multiply_elements(matrix, x)
-    matrix.map { |e1| e1.map { |e2| e2 * x  }  }
-  end
-end
+require 'matrix'
+require 'complex'
+
 
 class Player
   attr_reader :map
@@ -73,7 +60,7 @@ class Map
     !self.cells[point.x][point.y].has_object?
   end
 
-  def distance_evaluate start_point
+  def distance_evaluate start_point, reverse_flag
     distance_map = Array.new(self.row) { Array.new(self.col, nil)}
     distance_map.each_with_index do |row, x|
       row.each_with_index do |cell, y|
@@ -94,7 +81,11 @@ class Map
       end
     end
     max_num *= 1.0
-    return distance_map.map { |e1| e1.map { |e2| e2/max_num  }  }
+    if reverse_flag
+      return distance_map.map { |e1| e1.map { |e2| e2 < 0 ? -1 : (max_num - e2)/max_num}  }
+    else
+      return distance_map.map { |e1| e1.map { |e2| e2/max_num  }  }
+    end
   end
 end
 
@@ -171,8 +162,8 @@ class AI
 
       # スキルの吸い出し
       skill_num = $stdin.gets.strip
-      skill_costs     = $stdin.gets.strip.split(" ").map{|cost| cost.to_i}
-      @skills   = []
+      skill_costs = $stdin.gets.strip.split(" ").map{|cost| cost.to_i}
+      @skills = []
       skill_costs.each_with_index do |cost, id|
         @skills.push Skill.new id, cost
       end
@@ -181,7 +172,6 @@ class AI
       # 順番に注意！（inputは自分、相手の順に情報が入ってくる）
       @me    = extract_player $stdin
       @rival = extract_player $stdin
-
       # スキルは使わないので2固定
       puts "2"
 
@@ -189,24 +179,23 @@ class AI
       #enemyから遠いほど値を大きくしたい
       evaluate_enemy_map = Matrix.rows(Array.new(@me.map.row) { Array.new(@me.map.col, 0) } )
       @me.map.enemies.each do |enemy|
-        evaluate_enemy_map += Matrix.rows(@me.map.distance_evaluate enemy.point)
+        evaluate_enemy_map += Matrix.rows(@me.map.distance_evaluate enemy.point, false)
       end
       #正規化
-      evaluate_enemy_map = evaluate_enemy_map * 1.0 / @me.map.enemies.count unless @me.map.enemies.count == 0
 
-      evaluate_enemy_map = Matrix.rows evaluate_enemy_map.to_a.map{|a1| a1.map{|a2| a2 > 0 ? 1.0 - a2 : -1.0}}
+      # evaluate_enemy_map = Matrix.rows evaluate_enemy_map.to_a.map{|a1| a1.map{|a2| a2 < 0 ? -1.0 : a2 }}
 
       #itemから近いほど値大きい
       evaluate_item_map = Matrix.rows(Array.new(@me.map.row) { Array.new(@me.map.col, 0) } )
       @me.map.items.each do |item|
-        evaluate_item_map += Matrix.rows(@me.map.distance_evaluate item.point)
+        evaluate_item_map += Matrix.rows(@me.map.distance_evaluate item.point, true)
       end
       evaluate_item_map = evaluate_item_map * 1.0 / @me.map.items.count unless @me.map.items.count == 0
+      # evaluate_item_map = Matrix.rows evaluate_item_map.to_a.map{|a1| a1.map{|a2| a2 > 0 ? -1.0 : 1.0 - a2}}
 
       effective_map = evaluate_enemy_map * 0.5 + evaluate_item_map * 0.5
 
       effective_map = effective_map.to_a
-
 
       @me.map.ninjas.each do |ninja|
         now_point = ninja.point
@@ -215,20 +204,19 @@ class AI
         next_step = ""
         next_point = now_point
         while step_num < 2
-          max = 0
+          max = -1
           [[now_point.right, "R"], [now_point.left, "L"], [now_point.down, "D"], [now_point.up, "U"]].each do |po, code|
-            if effective_map[po.x][po.y] > max && po.x > 0 && po.y > 0
-              distance_map[po.x][po.y] = distance_map[now_point.x][now_point.y] + 1
+            if po.x >= 0 && po.y >= 0 && po.x <= @me.map.row && po.y <= @me.map.col && !@me.map.cells[po.x][po.y].has_object? && effective_map[po.x][po.y] > max
               next_step = code
               next_point = po
-              max_num = effective_map[po.x][po.y]
+              max = effective_map[po.x][po.y]
             end
           end
           steps << next_step
           now_point = next_point
           step_num += 1
         end
-        puts steps[0,1].join("")
+        puts steps[0,2].join("")
       end
       $stdout.flush
     end
