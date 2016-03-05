@@ -1,7 +1,20 @@
-require "pry"
-require 'matrix'
-require 'complex'
-
+# require "pry"
+# require 'matrix'
+# require 'complex'
+class Matrix
+  def self.elements_sum(a, b)
+    a3 = a.dup
+    a.each_with_index do |a1, x|
+      a1.each_with_index do |a2, y|
+        a3[x][y] = a2 + b[x][y]
+      end
+    end
+    return a3
+  end
+  def self.multiply_elements(matrix, x)
+    matrix.map { |e1| e1.map { |e2| e2 * x  }  }
+  end
+end
 
 class Player
   attr_reader :map
@@ -14,7 +27,7 @@ class Player
 end
 
 class Map
-  attr_reader :row, :col, :cells, :ninjas, :items
+  attr_reader :row, :col, :cells, :ninjas, :items, :enemies
 
   class Cell
     attr_reader :state, :point, :effective, :item_effective, :enemies_effective
@@ -84,46 +97,46 @@ class Map
     return distance_map.map { |e1| e1.map { |e2| e2/max_num  }  }
   end
 
-  def shortest_road start_point, end_point
-    # 初期化
-    item_effective_map = Array.new(self.row) { Array.new(self.col, nil) }
-    item_effective_map.each_with_index do |row, x|
-      row.each_with_index do |cell, y|
-        item_effective_map[x][y] = -1 if self.cells[x][y].has_object?
-      end
-    end
-    i = 0
-    item_effective_map[start_point.x][start_point.y] = 0
-    while item_effective_map.flatten.include?(nil) && i < 100
-      item_effective_map.each_with_index do |row, x|
-        row.each_with_index do |score, y|
-          if score == i
-            point = self.cells[x][y].point
-            [point.left, point.right, point.up, point.down].each do |po|
-              item_effective_map[po.x][po.y] = i+1 if self.movable?(po) && item_effective_map[po.x][po.y] == nil
-            end
-          end
-        end
-      end
-      i += 1
-    end
+  # def shortest_road start_point, end_point
+  #   # 初期化
+  #   item_effective_map = Array.new(self.row) { Array.new(self.col, nil) }
+  #   item_effective_map.each_with_index do |row, x|
+  #     row.each_with_index do |cell, y|
+  #       item_effective_map[x][y] = -1 if self.cells[x][y].has_object?
+  #     end
+  #   end
+  #   i = 0
+  #   item_effective_map[start_point.x][start_point.y] = 0
+  #   while item_effective_map.flatten.include?(nil) && i < 100
+  #     item_effective_map.each_with_index do |row, x|
+  #       row.each_with_index do |score, y|
+  #         if score == i
+  #           point = self.cells[x][y].point
+  #           [point.left, point.right, point.up, point.down].each do |po|
+  #             item_effective_map[po.x][po.y] = i+1 if self.movable?(po) && item_effective_map[po.x][po.y] == nil
+  #           end
+  #         end
+  #       end
+  #     end
+  #     i += 1
+  #   end
 
-    step  = item_effective_map[end_point.x][end_point.y]
-    steps = []
+  #   step  = item_effective_map[end_point.x][end_point.y]
+  #   steps = []
 
-    return steps if step.nil? || step < 0
-    next_po = self.cells[end_point.x][end_point.y].point
-    (step-1).downto(0) do |score|
-      [[next_po.right, "R"], [next_po.left, "L"], [next_po.down, "D"], [next_po.up, "U"]].each do |po, code|
-        if item_effective_map[po.x][po.y] == score
-          steps.push code
-          next_po = po
-          break
-        end
-      end
-    end
-    return steps.reverse
-  end
+  #   return steps if step.nil? || step < 0
+  #   next_po = self.cells[end_point.x][end_point.y].point
+  #   (step-1).downto(0) do |score|
+  #     [[next_po.right, "R"], [next_po.left, "L"], [next_po.down, "D"], [next_po.up, "U"]].each do |po, code|
+  #       if item_effective_map[po.x][po.y] == score
+  #         steps.push code
+  #         next_po = po
+  #         break
+  #       end
+  #     end
+  #   end
+  #   return steps.reverse
+  # end
 end
 
 
@@ -214,28 +227,48 @@ class AI
       puts "2"
 
       # 忍者の行動決定
-      evaluate_enemy_map = Vector.elements(Array.new(@me.map.row) { Array.new(@me.map.col, 0) } )
+      #enemyから遠いほど値を大きくしたい
+      evaluate_enemy_map = Matrix.rows(Array.new(@me.map.row) { Array.new(@me.map.col, 0) } )
       @me.map.enemies.each do |enemy|
-        evaluate_enemy_map += Vector.elements(@me.map.distance_evaluate enemy)
+        evaluate_enemy_map += Matrix.rows(@me.map.distance_evaluate enemy.point)
       end
-      evaluate_enemy_map = evaluate_enemy_map * 1.0 / @me.map.enemies.count
+      #正規化
+      evaluate_enemy_map = evaluate_enemy_map * 1.0 / @me.map.enemies.count unless @me.map.enemies.count == 0
 
-      evaluate_item_map = Vector.elements(Array.new(@me.map.row) { Array.new(@me.map.col, 0) } )
+      evaluate_enemy_map = Matrix.rows evaluate_enemy_map.to_a.map{|a1| a1.map{|a2| a2 > 0 ? 1.0 - a2 : -1.0}}
+
+      #itemから近いほど値大きい
+      evaluate_item_map = Matrix.rows(Array.new(@me.map.row) { Array.new(@me.map.col, 0) } )
       @me.map.items.each do |item|
-        evaluate_item_map += Vector.elements(@me.map.distance_evaluate item)
+        evaluate_item_map += Matrix.rows(@me.map.distance_evaluate item.point)
       end
-      evaluate_item_map = evaluate_item_map * 1.0 / @me.map.itmes.count
+      evaluate_item_map = evaluate_item_map * 1.0 / @me.map.items.count unless @me.map.items.count == 0
 
-      effective_map = evaluate_enemy_map * 0.5 + extract_item * 0.5
-      binging.pry
+      effective_map = evaluate_enemy_map * 0.5 + evaluate_item_map * 0.5
+
+      effective_map = effective_map.to_a
 
 
       @me.map.ninjas.each do |ninja|
-        item  = @me.map.nearest_item ninja.x, ninja.y
-        item_evaluate_map = @me.map.distance_evaluate item.point
-        evaluate_map += Vector.elements(item_evaluate_map)
-
-        steps = @me.map.shortest_road ninja, item
+        now_point = ninja.point
+        steps = []
+        step_num = 0
+        next_step = ""
+        next_point = now_point
+        while step_num < 2
+          max = 0
+          [[now_point.right, "R"], [now_point.left, "L"], [now_point.down, "D"], [now_point.up, "U"]].each do |po, code|
+            if effective_map[po.x][po.y] > max && po.x > 0 && po.y > 0
+              distance_map[po.x][po.y] = distance_map[now_point.x][now_point.y] + 1
+              next_step = code
+              next_point = po
+              max_num = effective_map[po.x][po.y]
+            end
+          end
+          steps << next_step
+          now_point = next_point
+          step_num += 1
+        end
         puts steps[0,1].join("")
       end
       $stdout.flush
