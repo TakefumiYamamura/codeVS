@@ -1,3 +1,4 @@
+require "pry"
 class Player
   attr_reader :map
 
@@ -12,10 +13,11 @@ class Map
   attr_reader :row, :col, :cells, :ninjas, :items
 
   class Cell
-    attr_reader :state, :point
+    attr_reader :state, :point, :effective, :item_effective, :enemies_effective
     def initialize x, y, state
       @point = Point.new(x, y)
       @state = state
+      @effective = has_object? ? -1 : 0 #障害物ありの場合は影響マップを0で初期化
     end
     def has_object?
       self.state == "W" || self.state == "O"
@@ -54,24 +56,47 @@ class Map
     !self.cells[point.x][point.y].has_object?
   end
 
-  def shortest_road start_point, end_point
-    # 初期化
-    map_scores = Array.new(self.row) { Array.new(self.col, nil) }
-    map_scores.each_with_index do |row, x|
+  def distance_evaluate start_point
+    distance_map = Array.new(self.row) { Array.new(self.col, nil)}
+    distance_map.each_with_index do |row, x|
       row.each_with_index do |cell, y|
-        map_scores[x][y] = -1 if self.cells[x][y].has_object?
+        distance_map[x][y] = -1 if self.cells[x][y].has_object?
       end
     end
+    distance_map[start_point.x][start_point.y] = 0
+    que = [start_point]
+    max_num = 0
+    while que.size > 0
+      now_point = que.shift
+      [now_point.left, now_point.right, now_point.up, now_point.down].each do |po|
+        if distance_map[po.x][po.y] == nil && distance_map[po.x][po.y] != -1 && po.x > 0 && po.y > 0
+          distance_map[po.x][po.y] = distance_map[now_point.x][now_point.y] + 1
+          que << po
+          max_num = distance_map[po.x][po.y]
+        end
+      end
+    end
+    binding.pry
+    return distance_map
+  end
 
+  def shortest_road start_point, end_point
+    # 初期化
+    item_effective_map = Array.new(self.row) { Array.new(self.col, nil) }
+    item_effective_map.each_with_index do |row, x|
+      row.each_with_index do |cell, y|
+        item_effective_map[x][y] = -1 if self.cells[x][y].has_object?
+      end
+    end
     i = 0
-    map_scores[start_point.x][start_point.y] = 0
-    while map_scores.flatten.include?(nil) && i < 100
-      map_scores.each_with_index do |row, x|
+    item_effective_map[start_point.x][start_point.y] = 0
+    while item_effective_map.flatten.include?(nil) && i < 100
+      item_effective_map.each_with_index do |row, x|
         row.each_with_index do |score, y|
           if score == i
             point = self.cells[x][y].point
             [point.left, point.right, point.up, point.down].each do |po|
-              map_scores[po.x][po.y] = i+1 if self.movable?(po) && map_scores[po.x][po.y] == nil
+              item_effective_map[po.x][po.y] = i+1 if self.movable?(po) && item_effective_map[po.x][po.y] == nil
             end
           end
         end
@@ -79,14 +104,14 @@ class Map
       i += 1
     end
 
-    step  = map_scores[end_point.x][end_point.y]
+    step  = item_effective_map[end_point.x][end_point.y]
     steps = []
 
     return steps if step.nil? || step < 0
     next_po = self.cells[end_point.x][end_point.y].point
     (step-1).downto(0) do |score|
       [[next_po.right, "R"], [next_po.left, "L"], [next_po.down, "D"], [next_po.up, "U"]].each do |po, code|
-        if map_scores[po.x][po.y] == score
+        if item_effective_map[po.x][po.y] == score
           steps.push code
           next_po = po
           break
@@ -133,11 +158,18 @@ class Character
 end
 
 class Item
-  attr_reader :x, :y
+  attr_reader :x, :y, :point
 
   def initialize x, y
     @x = x
     @y = y
+    @point = Point.new(x, y)
+  end
+  def x
+    @point.x
+  end
+  def y
+    @point.y
   end
 end
 
@@ -180,10 +212,10 @@ class AI
       # 忍者の行動決定
       @me.map.ninjas.each do |ninja|
         item  = @me.map.nearest_item ninja.x, ninja.y
+        @me.map.distance_evaluate item.point
         steps = @me.map.shortest_road ninja, item
-        puts steps[0,2].join("")
+        puts steps[0,1].join("")
       end
-
       $stdout.flush
     end
   end
